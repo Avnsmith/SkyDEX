@@ -1,0 +1,110 @@
+/* SkyDEX design system */
+:root {
+  --color-primary: hsl(210, 80%, 55%); /* sky blue */
+  --color-bg: linear-gradient(135deg, hsl(210, 90%, 95%), hsl(210, 70%, 85%));
+  --color-card-bg: rgba(255, 255, 255, 0.25);
+  --color-text: #212121;
+  --font-family: 'Inter', sans-serif;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  background: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.container {
+  text-align: center;
+  max-width: 420px;
+  width: 100%;
+  padding: 1rem;
+}
+
+.logo {
+  width: 80px;
+  height: auto;
+  margin-bottom: 0.5rem;
+}
+
+h1 {
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: var(--color-primary);
+}
+
+.card {
+  background: var(--color-card-bg);
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.field label {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.field select,
+.field input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.8);
+  font-size: 0.9rem;
+}
+
+button {
+  padding: 0.75rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+#connectBtn {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+#swapBtn {
+  background: #4caf50;
+  color: #fff;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+#status {
+  background: rgba(0,0,0,0.05);
+  padding: 0.5rem;
+  border-radius: 8px;
+  max-height: 100px;
+  overflow-y: auto;
+  font-size: 0.8rem;
+}

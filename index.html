@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyDEX – Arc Testnet DEX</title>
+  <link rel="stylesheet" href="style.css" />
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="container">
+    <img src="sky_dex_logo_1779599187613.png" alt="SkyDEX Logo" class="logo" />
+    <h1>SkyDEX</h1>
+    <div class="card">
+      <div class="field">
+        <label for="sellToken">From</label>
+        <select id="sellToken"></select>
+        <input type="number" id="sellAmount" placeholder="Amount" />
+      </div>
+      <div class="field">
+        <label for="buyToken">To</label>
+        <select id="buyToken"></select>
+        <input type="number" id="buyAmount" placeholder="Estimated amount" readonly />
+      </div>
+      <button id="connectBtn">Connect Wallet</button>
+      <button id="swapBtn" disabled>Swap</button>
+      <pre id="status"></pre>
+    </div>
+  </div>
+</body>
+</html>
