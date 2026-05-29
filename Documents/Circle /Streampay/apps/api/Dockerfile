@@ -23,7 +23,8 @@ COPY --from=builder /app/out/full/ .
 RUN pnpm --filter @streampay/database run generate
 
 # Build ALL workspace packages that api depends on (types, database, gateway-sdk, risk-engine, etc.)
-RUN pnpm --filter "@streampay/*" run build --if-present
+# --if-present is a pnpm flag (skip if no build script) — must come BEFORE the script name
+RUN pnpm --filter "@streampay/*" run --if-present build
 
 # Build the API itself
 RUN pnpm --filter api run build
