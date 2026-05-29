@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Play, Square, Cpu, Activity, ShieldCheck, Zap } from "lucide-react";
+import { Play, Square, Activity, Zap, Cpu, Settings2, ShieldAlert } from "lucide-react";
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { useWebsocket, useStreamSession } from "../hooks/useRealtime";
 import { AgentTerminal } from "../components/AgentTerminal";
-import { ArcDexPanel } from "../components/ArcDexPanel";
 
 export default function Dashboard() {
-  const [isActive, setIsActive] = useState(false);
-  const sessionId = "mock-session-id";
+  const [taskInput, setTaskInput] = useState("");
+  const [streamRate, setStreamRate] = useState(0.0001);
+  const sessionId = "live-demo-session";
 
   const { socket, isConnected: isWsConnected } = useWebsocket(sessionId);
   const { streamData, status } = useStreamSession(socket);
@@ -19,166 +19,178 @@ export default function Dashboard() {
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
 
-  const handleStart = () => {
-    setIsActive(true);
-    // In a real app we'd make an HTTP request to start the agent task here
-    // e.g., fetch('/api/sessions/start', ...)
+  const isAgentLive = status === 'ACTIVE';
+
+  const handleStart = async () => {
+    if (!taskInput.trim()) return;
+    
+    // Notify server to start stream via HTTP/API in real app
+    // For now we trigger the websocket
+    if (socket) {
+      socket.emit('session:start', { sessionId, task: taskInput, rate: streamRate });
+    }
   };
 
   const handleStop = () => {
-    setIsActive(false);
     if (socket) {
       socket.emit('session:cancel', { sessionId });
     }
   };
 
-  // We can use the status from websocket or local active state
-  const isAgentLive = isActive && status !== 'COMPLETED' && status !== 'CANCELLED';
-
   return (
-    <div className="min-h-screen bg-neutral-950 text-white p-8 font-sans selection:bg-blue-500/30">
-      <div className="max-w-5xl mx-auto space-y-12">
-        {/* Header */}
-        <header className="flex justify-between items-center pb-6 border-b border-white/5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-              <Zap className="text-white w-5 h-5" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight">StreamPay</h1>
-            <div className={`ml-4 px-2 py-1 rounded text-xs font-mono ${isWsConnected ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-              {isWsConnected ? 'WS: CONNECTED' : 'WS: DISCONNECTED'}
-            </div>
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30 flex flex-col">
+      {/* Top Navbar */}
+      <header className="flex justify-between items-center px-8 py-5 border-b border-white/5 bg-black/50 backdrop-blur-md sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+            <Zap className="text-white w-4 h-4" />
           </div>
+          <h1 className="text-xl font-bold tracking-tight">StreamPay</h1>
           
-          <div className="flex items-center gap-4">
-            {isConnected ? (
-              <div className="flex items-center gap-4">
-                <div className="px-4 py-2 bg-white/5 rounded-lg border border-white/10 font-mono text-sm">
-                  {address?.slice(0,6)}...{address?.slice(-4)}
-                </div>
-                <button onClick={() => disconnect()} className="text-neutral-400 hover:text-white transition-colors text-sm">
-                  Disconnect
-                </button>
+          <div className="ml-6 flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isWsConnected ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-red-500'}`} />
+            <span className="text-xs font-mono text-neutral-500 uppercase tracking-widest">{isWsConnected ? 'Network Connected' : 'Reconnecting...'}</span>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          {isConnected ? (
+            <div className="flex items-center gap-4">
+              <div className="px-4 py-2 bg-neutral-900 rounded-lg border border-white/10 font-mono text-sm text-neutral-300">
+                {address?.slice(0,6)}...{address?.slice(-4)}
               </div>
-            ) : (
-              <button 
-                onClick={() => connect({ connector: connectors[0] })}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 transition-colors rounded-lg font-medium text-sm shadow-[0_0_20px_rgba(37,99,235,0.3)]"
-              >
-                Connect Wallet
+              <button onClick={() => disconnect()} className="text-neutral-500 hover:text-white transition-colors text-sm font-medium">
+                Disconnect
               </button>
-            )}
-          </div>
-        </header>
+            </div>
+          ) : (
+            <button 
+              onClick={() => connect({ connector: connectors[0] })}
+              className="px-6 py-2 bg-white text-black hover:bg-neutral-200 transition-colors rounded-lg font-semibold text-sm"
+            >
+              Connect Wallet
+            </button>
+          )}
+        </div>
+      </header>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Main Content */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* Left Column: Task & Streaming Interface */}
+        <div className="lg:col-span-5 flex flex-col gap-8">
           
-          {/* Left Column: Agent Control & Terminals */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-neutral-900 border border-white/5 rounded-3xl p-8 relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-              
-              <div className="flex justify-between items-start mb-12 relative z-10">
-                <div>
-                  <h2 className="text-3xl font-semibold mb-2">Data Scraping Agent</h2>
-                  <p className="text-neutral-400">Autonomous web crawler fetching structured market data.</p>
-                </div>
-                <div className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${isAgentLive ? 'bg-green-500/10 text-green-400' : 'bg-neutral-800 text-neutral-500'}`}>
-                  {isAgentLive && <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />}
-                  {isAgentLive ? 'Live' : 'Idle'}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 relative z-10">
-                {!isAgentLive ? (
-                  <button 
-                    onClick={handleStart}
-                    className="flex-1 flex items-center justify-center gap-2 py-4 bg-white text-black hover:bg-neutral-200 transition-colors rounded-2xl font-semibold text-lg"
-                  >
-                    <Play className="w-5 h-5 fill-current" />
-                    Start Agent
-                  </button>
-                ) : (
-                  <button 
-                    onClick={handleStop}
-                    className="flex-1 flex items-center justify-center gap-2 py-4 bg-red-500 hover:bg-red-400 transition-colors rounded-2xl font-semibold text-lg text-white"
-                  >
-                    <Square className="w-5 h-5 fill-current" />
-                    Stop Agent
-                  </button>
-                )}
-              </div>
+          {/* Task Setup Panel */}
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-6 opacity-10">
+               <Cpu className="w-32 h-32" />
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <AgentTerminal socket={socket} />
-              <ArcDexPanel socket={socket} />
-            </div>
-          </div>
-
-          {/* Right Column: Streaming Billing Panel */}
-          <div className="bg-neutral-900 border border-white/5 rounded-3xl p-8 flex flex-col h-[full]">
-            <div className="flex items-center gap-2 text-neutral-400 mb-8">
-              <ShieldCheck className="w-5 h-5 text-blue-400" />
-              <h3 className="font-medium">Streaming Payment</h3>
-            </div>
-
-            <div className="flex-1 flex flex-col justify-center items-center text-center space-y-2 relative min-h-[250px]">
-              {/* Animated Ring */}
-              {isAgentLive && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                   <div className="w-48 h-48 border-2 border-blue-500/20 rounded-full animate-[spin_4s_linear_infinite]" />
-                   <div className="w-56 h-56 border border-purple-500/10 rounded-full animate-[spin_7s_linear_infinite_reverse] absolute" />
-                </div>
-              )}
-              
-              <div className="text-sm text-neutral-500 font-medium tracking-wide uppercase relative z-10">Amount Spent</div>
-              <motion.div 
-                key={streamData.totalSpent}
-                initial={{ opacity: 0.5, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-5xl font-mono font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/70 relative z-10"
-              >
-                ${streamData.totalSpent.toFixed(4)}
-              </motion.div>
-            </div>
-
-            <div className="mt-8 pt-8 border-t border-white/5 space-y-6">
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-xs text-neutral-500 uppercase tracking-wide mb-1">Compute</div>
-                  <div className="font-mono text-lg">{streamData.runtime}s</div>
-                </div>
-                <div>
-                  <div className="text-xs text-neutral-500 uppercase tracking-wide mb-1">Rate</div>
-                  <div className="font-mono text-lg">0.0001 <span className="text-sm text-neutral-500">USDC/s</span></div>
-                </div>
+            
+            <h2 className="text-2xl font-bold mb-6 relative z-10">Deploy Autonomous Agent</h2>
+            
+            <div className="space-y-6 relative z-10">
+              <div>
+                <label className="block text-sm font-medium text-neutral-400 mb-2">Agent Objective</label>
+                <textarea 
+                  value={taskInput}
+                  onChange={(e) => setTaskInput(e.target.value)}
+                  disabled={isAgentLive}
+                  placeholder="e.g., Scrape real-time market data for ETH and swap 10 USDC to EURC..."
+                  className="w-full bg-black border border-white/10 rounded-xl p-4 text-white placeholder:text-neutral-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none h-32 disabled:opacity-50"
+                />
               </div>
 
               <div>
-                <div className="flex justify-between items-end mb-2">
-                  <div className="text-sm text-neutral-400">Budget Remaining</div>
-                  <div className="text-lg font-mono font-medium text-green-400">
-                    {streamData.balanceRemaining.toFixed(4)} USDC
-                  </div>
-                </div>
-                {/* Progress bar */}
-                <div className="w-full h-1.5 bg-neutral-800 rounded-full overflow-hidden">
-                  <motion.div 
-                    className="h-full bg-gradient-to-r from-green-400 to-blue-500"
-                    initial={{ width: "100%" }}
-                    animate={{ width: `${(streamData.balanceRemaining / 10) * 100}%` }}
-                    transition={{ ease: "linear", duration: 1 }}
-                  />
+                <label className="block text-sm font-medium text-neutral-400 mb-2 flex items-center justify-between">
+                  <span>Compute Stream Rate</span>
+                  <span className="font-mono text-blue-400">{streamRate} USDC/s</span>
+                </label>
+                <input 
+                  type="range" 
+                  min="0.0001" 
+                  max="0.01" 
+                  step="0.0001"
+                  value={streamRate}
+                  onChange={(e) => setStreamRate(parseFloat(e.target.value))}
+                  disabled={isAgentLive}
+                  className="w-full accent-blue-500 disabled:opacity-50"
+                />
+                <div className="flex justify-between text-xs text-neutral-600 font-mono mt-2">
+                  <span>Economy (0.0001)</span>
+                  <span>Turbo (0.01)</span>
                 </div>
               </div>
-            </div>
 
+              {!isAgentLive ? (
+                <button 
+                  onClick={handleStart}
+                  disabled={!taskInput.trim() || !isConnected}
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:bg-neutral-800 disabled:text-neutral-500 transition-colors rounded-xl font-bold text-lg shadow-[0_0_20px_rgba(37,99,235,0.2)]"
+                >
+                  Start Streaming Compute
+                </button>
+              ) : (
+                <button 
+                  onClick={handleStop}
+                  className="w-full flex justify-center items-center gap-2 py-4 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 transition-colors rounded-xl font-bold text-lg"
+                >
+                  <Square className="w-5 h-5 fill-current" />
+                  Stop Execution
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Live Stream Meter */}
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl">
+            {isAgentLive && (
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30">
+                <div className="w-64 h-64 border-[4px] border-blue-500/20 rounded-full animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]" />
+                <div className="w-48 h-48 border-[2px] border-purple-500/30 rounded-full animate-[spin_4s_linear_infinite] absolute" />
+              </div>
+            )}
+            
+            <div className="text-sm font-bold tracking-widest text-neutral-500 uppercase mb-2 relative z-10 flex items-center gap-2">
+              <Activity className="w-4 h-4" /> Live USDC Drain
+            </div>
+            
+            <motion.div 
+              key={streamData.totalSpent}
+              initial={{ opacity: 0.8, y: -2 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-6xl font-mono font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-neutral-500 relative z-10 py-2"
+            >
+              ${streamData.totalSpent.toFixed(4)}
+            </motion.div>
+            
+            <div className="grid grid-cols-2 gap-8 mt-8 w-full relative z-10 text-center border-t border-white/10 pt-6">
+               <div>
+                 <div className="text-xs text-neutral-500 uppercase tracking-widest mb-1">Runtime</div>
+                 <div className="font-mono text-xl">{streamData.runtime}s</div>
+               </div>
+               <div>
+                 <div className="text-xs text-neutral-500 uppercase tracking-widest mb-1">Balance Remaining</div>
+                 <div className="font-mono text-xl text-green-400">{streamData.balanceRemaining.toFixed(4)}</div>
+               </div>
+            </div>
+            
+            <div className="w-full h-2 bg-neutral-900 rounded-full mt-6 overflow-hidden relative z-10">
+              <motion.div 
+                className="h-full bg-gradient-to-r from-green-400 via-blue-500 to-purple-600"
+                initial={{ width: "100%" }}
+                animate={{ width: `${Math.max(0, (streamData.balanceRemaining / 10) * 100)}%` }}
+                transition={{ ease: "linear", duration: 1 }}
+              />
+            </div>
           </div>
         </div>
-      </div>
+
+        {/* Right Column: Agent Telemetry */}
+        <div className="lg:col-span-7 flex flex-col">
+          <AgentTerminal socket={socket} isLive={isAgentLive} />
+        </div>
+
+      </main>
     </div>
   );
 }

@@ -14,6 +14,7 @@ COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 RUN pnpm install --frozen-lockfile
 
 COPY --from=builder /app/out/full/ .
+RUN pnpm --filter @streampay/database run generate
 RUN pnpm --filter api run build
 
 FROM node:20-alpine AS runner
