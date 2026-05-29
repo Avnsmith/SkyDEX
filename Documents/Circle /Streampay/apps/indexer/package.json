@@ -1,0 +1,21 @@
+{
+  "name": "indexer",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node-dev src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "viem": "^2.51.3",
+    "@streampay/database": "workspace:*",
+    "@streampay/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@streampay/shared-config": "workspace:*",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.5"
+  }
+}

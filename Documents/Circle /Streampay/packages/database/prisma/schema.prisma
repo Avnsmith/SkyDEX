@@ -1,0 +1,110 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  address   String   @unique // Wallet address
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions Session[]
+  balances Balance[]
+}
+
+model Session {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  agentId         String   // The AI agent assigned
+  status          String   // 'ACTIVE', 'COMPLETED', 'CANCELLED'
+  startedAt       DateTime @default(now())
+  endedAt         DateTime?
+  ratePerSecond   Float    // Example: 0.0001
+  totalSpent      Float    @default(0)
+  budget          Float    // Max budget for the session
+
+  agentRuns   AgentRun[]
+  usageEvents UsageEvent[]
+  swaps       Swap[]
+  settlements Settlement[]
+  policyRules PolicyRule[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AgentRun {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     Session  @relation(fields: [sessionId], references: [id])
+  taskType    String   // 'coding', 'research', etc.
+  status      String   // 'RUNNING', 'SUCCESS', 'FAILED'
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+  logs        String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UsageEvent {
+  id              String   @id @default(cuid())
+  sessionId       String
+  session         Session  @relation(fields: [sessionId], references: [id])
+  timestamp       DateTime @default(now())
+  computeSeconds  Int
+  tokensGenerated Int
+  apiCalls        Int
+  swapVolume      Float
+}
+
+model Swap {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     Session  @relation(fields: [sessionId], references: [id])
+  tokenIn     String
+  tokenOut    String
+  amountIn    Float
+  amountOut   Float
+  txHash      String?
+  status      String   // 'PENDING', 'SUCCESS', 'FAILED'
+  createdAt   DateTime @default(now())
+}
+
+model Settlement {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     Session  @relation(fields: [sessionId], references: [id])
+  amount      Float
+  txHash      String?
+  status      String   // 'PENDING', 'SETTLED'
+  createdAt   DateTime @default(now())
+}
+
+model Balance {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  chainId     Int      // 5042002 for Arc Testnet
+  amount      Float
+  updatedAt   DateTime @updatedAt
+}
+
+model PolicyRule {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     Session  @relation(fields: [sessionId], references: [id])
+  ruleType    String   // 'MAX_DAILY_SPEND', 'ALLOWED_TOKENS', 'MAX_SWAP'
+  ruleValue   String   // JSON string or scalar
+  createdAt   DateTime @default(now())
+}

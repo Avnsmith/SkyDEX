@@ -1,0 +1,18 @@
+{
+  "name": "@streampay/gateway-sdk",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "ethers": "^6.12.1"
+  },
+  "devDependencies": {
+    "@streampay/shared-config": "workspace:*",
+    "@streampay/types": "workspace:*",
+    "typescript": "^5.4.5"
+  }
+}

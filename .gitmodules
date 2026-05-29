@@ -13,3 +13,9 @@
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "Documents/Circle /Streampay/packages/contracts/lib/forge-std"]
+	path = Documents/Circle /Streampay/packages/contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "Documents/Circle /Streampay/packages/contracts/lib/openzeppelin-contracts"]
+	path = Documents/Circle /Streampay/packages/contracts/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
