@@ -2,26 +2,20 @@
 > web@0.1.0 build /Users/vinh/Documents/Circle /Streampay/apps/web
 > next build
 
-⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
- We detected multiple lockfiles and selected the directory of /Users/vinh/pnpm-workspace.yaml as the root directory.
- To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
-   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
- Detected additional lockfiles: 
-   * /Users/vinh/Documents/Circle /Streampay/pnpm-workspace.yaml
-
+⚠ turbopack.root should be absolute, using: /Users/vinh/Documents/Circle /Streampay
 ▲ Next.js 16.2.6 (Turbopack)
 - Environments: .env.local
 
   Creating an optimized production build ...
-✓ Compiled successfully in 5.9s
+✓ Compiled successfully in 2.3s
   Running TypeScript ...
-  Finished TypeScript in 6.4s ...
+  Finished TypeScript in 1770ms ...
   Collecting page data using 5 workers ...
   Generating static pages using 5 workers (0/4) ...
   Generating static pages using 5 workers (1/4) 
   Generating static pages using 5 workers (2/4) 
   Generating static pages using 5 workers (3/4) 
-✓ Generating static pages using 5 workers (4/4) in 381ms
+✓ Generating static pages using 5 workers (4/4) in 177ms
   Finalizing page optimization ...
 
 Route (app)
