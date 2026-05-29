@@ -1,0 +1,179 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ApiService {
+  id            String  @id @default(cuid())
+  name          String
+  description   String
+  /// Seller endpoint — never exposed in API responses
+  endpoint      String
+  /// USDC amount in 6-decimal units, stored as string (e.g. "10000" = $0.01 USDC)
+  pricePerCall  String
+  sellerAddress String
+  category      String
+  tags          String[] @default([])
+  isActive      Boolean  @default(true)
+
+  /// Aggregate counters (updated via queue processor)
+  totalRequests Int    @default(0)
+  /// Cumulative revenue in 6-decimal USDC units
+  totalRevenue  String @default("0")
+  uptimePercent Float  @default(100.0)
+  avgLatencyMs  Float  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  requests        ApiRequest[]
+  dailyStats      DailyApiStat[]
+  paymentAttempts PaymentAttempt[]
+
+  @@index([sellerAddress])
+  @@index([category])
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+model ApiRequest {
+  id       String     @id @default(cuid())
+  service  ApiService @relation(fields: [serviceId], references: [id])
+  serviceId String
+
+  payerAddress     String
+  /// Total USDC amount paid by buyer (6-decimal units)
+  amountUsdc       String
+  /// 2% platform fee tracked off-chain (6-decimal units)
+  platformFeeUsdc  String
+  /// Seller receives full amountUsdc on-chain; platform fee is accounting only (6-decimal units)
+  sellerAmountUsdc String
+  /// x402 payment reference / transaction hash
+  txReference      String
+
+  responseStatus Int
+  latencyMs      Int
+  /// Non-null if proxy encountered an error
+  error          String?
+
+  createdAt DateTime @default(now())
+
+  @@index([serviceId])
+  @@index([payerAddress])
+  @@index([createdAt])
+  @@index([serviceId, createdAt])
+}
+
+model DailyApiStat {
+  id            String     @id @default(cuid())
+  service       ApiService @relation(fields: [serviceId], references: [id])
+  serviceId     String
+  sellerAddress String
+
+  /// Date truncated to midnight UTC
+  date            DateTime
+  requests        Int      @default(0)
+  /// Total revenue in 6-decimal USDC units
+  revenueUsdc     String   @default("0")
+  /// Platform fee in 6-decimal USDC units
+  platformFeeUsdc String   @default("0")
+  avgLatencyMs    Float    @default(0)
+  errorCount      Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([serviceId, date])
+  @@index([sellerAddress, date])
+  @@index([date])
+}
+
+model SiweNonce {
+  id        String   @id @default(cuid())
+  nonce     String   @unique
+  /// Lowercase Ethereum address
+  address   String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([address])
+}
+
+model PaymentAttempt {
+  id            String   @id @default(cuid())
+  payerAddress  String   // lowercase
+  sellerAddress String   // lowercase
+  serviceId     String
+  amountUsdc    String   // 6 decimals
+  status        String   // "PENDING", "VERIFIED", "SETTLED", "FAILED"
+  txReference   String   @unique
+  nonce         String
+  validBefore   DateTime
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  settlement    PaymentSettlement?
+  service       ApiService         @relation(fields: [serviceId], references: [id])
+
+  @@index([payerAddress])
+  @@index([sellerAddress])
+  @@index([status])
+  @@map("payment_attempts")
+}
+
+model PaymentSettlement {
+  id               String         @id @default(cuid())
+  attemptId        String         @unique
+  attempt          PaymentAttempt @relation(fields: [attemptId], references: [id])
+  txHash           String         // transaction hash of micro-payment or batch settlement
+  platformFeeUsdc  String         // 3% platform fee
+  sellerAmountUsdc String         // 97% seller amount
+  status           String         // "PENDING", "CONFIRMED", "FAILED"
+  blockNumber      Int?
+  batchId          String?
+  batch            GatewayBatch?  @relation(fields: [batchId], references: [id])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([txHash])
+  @@index([status])
+  @@map("payment_settlements")
+}
+
+model GatewayBatch {
+  id               String              @id @default(cuid())
+  batchId          String              @unique
+  status           String              // "OPEN", "SELLING", "SETTLED"
+  totalAmountUsdc  String              // 6 decimals
+  transactionHash  String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  settlements      PaymentSettlement[]
+
+  @@map("gateway_batches")
+}
+
+model FailedAuthorization {
+  id           String   @id @default(cuid())
+  serviceId    String
+  payerAddress String
+  txReference  String
+  errorType    String   // "EXPIRED", "REPLAY", "INVALID_SIGNATURE", "SPAM"
+  amountUsdc   String
+  resolved     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([payerAddress])
+  @@index([errorType])
+  @@map("failed_authorizations")
+}

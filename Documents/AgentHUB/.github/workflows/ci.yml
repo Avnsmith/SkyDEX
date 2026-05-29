@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: agenthub
+          POSTGRES_PASSWORD: agenthub_dev
+          POSTGRES_DB: agenthub
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter api prisma generate
+        env:
+          DATABASE_URL: postgresql://agenthub:agenthub_dev@localhost:5432/agenthub
+
+      - name: Run migrations
+        run: pnpm --filter api prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://agenthub:agenthub_dev@localhost:5432/agenthub
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+        env:
+          DATABASE_URL: postgresql://agenthub:agenthub_dev@localhost:5432/agenthub
+          NEXT_PUBLIC_API_URL: http://localhost:4000
