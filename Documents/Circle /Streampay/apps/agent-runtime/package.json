@@ -9,6 +9,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@circle-fin/x402-batching": "^3.0.4",
     "@langchain/anthropic": "^0.2.3",
     "@langchain/core": "^0.2.14",
     "@langchain/groq": "^1.2.1",
@@ -16,6 +17,8 @@
     "@streampay/database": "workspace:*",
     "@streampay/risk-engine": "workspace:*",
     "@streampay/types": "workspace:*",
+    "@x402/core": "^2.13.0",
+    "@x402/evm": "^2.13.0",
     "bullmq": "^5.77.6",
     "ioredis": "^5.4.1",
     "viem": "^2.51.3"
