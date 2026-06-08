@@ -1,5 +1,8 @@
 FROM node:22-alpine AS base
 
+# Install openssl for Prisma
+RUN apk add --no-cache openssl
+
 # Install pnpm
 RUN npm install -g pnpm@11.5.0
 
@@ -35,6 +38,9 @@ RUN cp -r /app/apps/api/dist /prod/dist && \
 
 # ── 5. Runtime stage ────────────────────────────────────────────────────────
 FROM node:22-alpine AS runtime
+
+# Install openssl for Prisma
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 
