@@ -26,7 +26,7 @@ RUN pnpm --filter api exec prisma generate --schema=prisma/schema.prisma
 RUN pnpm --filter api run build
 
 # ── 4. Prune dev dependencies ───────────────────────────────────────────────
-RUN pnpm --filter api --prod deploy /prod
+RUN pnpm --filter api --prod deploy --legacy /prod
 
 # Copy built dist into prod
 RUN cp -r /app/apps/api/dist /prod/dist && \
