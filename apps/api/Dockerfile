@@ -28,9 +28,9 @@ RUN pnpm --filter api run build
 RUN pnpm --filter api --prod deploy /prod
 
 # Copy built dist into prod
-COPY --from=base /app/apps/api/dist /prod/dist
-COPY --from=base /app/apps/api/prisma /prod/prisma
-COPY --from=base /app/packages /prod/packages
+RUN cp -r /app/apps/api/dist /prod/dist && \
+    cp -r /app/apps/api/prisma /prod/prisma && \
+    cp -r /app/packages /prod/packages
 
 # ── 5. Runtime stage ────────────────────────────────────────────────────────
 FROM node:22-alpine AS runtime
