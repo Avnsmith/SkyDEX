@@ -1,0 +1,15 @@
+{
+  "name": "@streampay/types",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "lint": "echo 'linting types'"
+  },
+  "devDependencies": {
+    "@streampay/shared-config": "workspace:*",
+    "typescript": "^5.4.5"
+  }
+}

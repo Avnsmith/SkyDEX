@@ -1,0 +1,31 @@
+{
+  "name": "agent-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node-dev src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@circle-fin/x402-batching": "^3.0.4",
+    "@langchain/anthropic": "^0.2.3",
+    "@langchain/core": "^0.2.14",
+    "@langchain/groq": "^1.2.1",
+    "@langchain/langgraph": "^1.3.2",
+    "@streampay/database": "workspace:*",
+    "@streampay/risk-engine": "workspace:*",
+    "@streampay/types": "workspace:*",
+    "@x402/core": "^2.13.0",
+    "@x402/evm": "^2.13.0",
+    "bullmq": "^5.77.6",
+    "ioredis": "^5.4.1",
+    "viem": "^2.51.3"
+  },
+  "devDependencies": {
+    "@streampay/shared-config": "workspace:*",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.5"
+  }
+}

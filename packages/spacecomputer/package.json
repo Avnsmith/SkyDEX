@@ -1,0 +1,16 @@
+{
+  "name": "@orbitnote/spacecomputer",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@spacecomputer-io/orbitport-sdk-ts": "^0.2.1"
+  }
+}

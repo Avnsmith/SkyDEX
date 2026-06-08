@@ -1,0 +1,9 @@
+{
+  "extends": "@streampay/shared-config/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "moduleResolution": "bundler"
+  },
+  "include": ["src/**/*"]
+}

@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Note {
+  id               String    @id @default(uuid()) @db.Uuid
+  ownerId          String    @map("owner_id") @db.Uuid
+  title            String
+  ciphertext       Bytes
+  encryptedDataKey String    @map("encrypted_data_key")
+  iv               String
+  authTag          String    @map("auth_tag")
+  algorithm        String    @default("aes-256-gcm")
+  keyVersion       String    @default("1") @map("key_version")
+  attestationId    String?   @unique @map("attestation_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  attestation Attestation? @relation(fields: [attestationId], references: [id])
+
+  @@index([ownerId])
+  @@index([deletedAt])
+  @@map("notes")
+}
+
+model File {
+  id                   String    @id @default(uuid()) @db.Uuid
+  ownerId              String    @map("owner_id") @db.Uuid
+  filename             String
+  mimeType             String    @map("mime_type")
+  fileSize             Int       @map("file_size")
+  sha256Hash           String    @map("sha256_hash")
+  encryptedStoragePath String    @map("encrypted_storage_path")
+  encryptedDataKey     String    @map("encrypted_data_key")
+  iv                   String
+  authTag              String    @map("auth_tag")
+  algorithm            String    @default("aes-256-gcm")
+  keyVersion           String    @default("1") @map("key_version")
+  attestationId        String?   @unique @map("attestation_id") @db.Uuid
+  createdAt            DateTime  @default(now()) @map("created_at")
+  deletedAt            DateTime? @map("deleted_at")
+
+  attestation Attestation? @relation(fields: [attestationId], references: [id])
+
+  @@index([ownerId])
+  @@index([deletedAt])
+  @@map("files")
+}
+
+model Attestation {
+  id            String   @id @default(uuid()) @db.Uuid
+  provider      String   @default("mock")         // "mock" | "spacecomputer" | "nitro" etc.
+  operationType String   @map("operation_type")   // "encrypt_note" | "encrypt_file"
+  measurement   String                             // TEE measurement hash
+  timestamp     DateTime @default(now())
+  metadataJson  Json     @map("metadata_json")     // Cryptographic attestation envelope
+
+  note Note?
+  file File?
+
+  @@map("attestations")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  ownerId      String   @map("owner_id") @db.Uuid
+  action       String                              // "create_note", "update_note", "delete_note", "encrypt_note", "decrypt_note", "upload_file", "download_file", "delete_file", "view_attestation"
+  resourceType String   @map("resource_type")      // "note" | "file" | "attestation"
+  resourceId   String   @map("resource_id") @db.Uuid
+  timestamp    DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([timestamp])
+  @@index([resourceId])
+  @@map("audit_logs")
+}

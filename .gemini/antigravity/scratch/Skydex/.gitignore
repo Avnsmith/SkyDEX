@@ -1,0 +1,48 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.vercel
+.env
+.env.local
+.env.*.local
+.env.vercel.check
+
+# Local debug / generated artifacts (do not commit)
+src/SwaparcApp.jsx.*
+!src/SwaparcApp.jsx
+eslint-errors.*
+eslint-report.json
+lint_errors.txt
+count_output.txt
+backfill_logs_checkpoint.json
+
+# ZK / circom build artifacts (large)
+build/privpay/*.r1cs
+build/privpay/*.zkey
+build/privpay/*.ptau
+build/privpay/pot*_*.ptau
+build/privpay/**/*_final.ptau
+*.ptau
+tools/circom.exe

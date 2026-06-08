@@ -1,0 +1,16 @@
+node_modules
+.next
+dist
+build
+out
+.turbo
+*.log
+.env
+.env.local
+.env.production
+dist-build
+.prisma
+packages/spacecomputer/node_modules
+apps/api/node_modules
+apps/web/node_modules
+packages/shared/node_modules

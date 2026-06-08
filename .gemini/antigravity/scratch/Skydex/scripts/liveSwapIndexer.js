@@ -1,0 +1,262 @@
+import "dotenv/config";
+import { ethers } from "ethers";
+import { kv } from "../lib/server/kv.js";
+
+const PRIMARY_RPC_URL =
+  process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network";
+const FALLBACK_RPC_URL = process.env.ARC_RPC_URL_FALLBACK || null;
+const TERTIARY_RPC_URL = process.env.ARC_RPC_URL_TERTIARY || null;
+const GET_DY_MIN_INTERVAL_MS = Number(
+  process.env.INDEXER_GET_DY_MIN_INTERVAL_MS || 120
+);
+const SWAP_POOL_ADDRESS = "0x2F4490e7c6F3DaC23ffEe6e71bFcb5d1CCd7d4eC";
+const POOL_ABI = [
+  "function get_dy(uint256 i, uint256 j, uint256 dx) view returns (uint256)"
+];
+
+const network = ethers.Network.from({
+  name: "arc-testnet",
+  chainId: 5042002,
+});
+
+function createProvider(url) {
+  return new ethers.JsonRpcProvider(url, network, {
+    batchMaxCount: 1,
+    staticNetwork: network,
+  });
+}
+
+const rpcEntries = [
+  { label: "primary", url: PRIMARY_RPC_URL },
+  ...(FALLBACK_RPC_URL ? [{ label: "fallback", url: FALLBACK_RPC_URL }] : []),
+  ...(TERTIARY_RPC_URL ? [{ label: "tertiary", url: TERTIARY_RPC_URL }] : []),
+].map((entry) => ({
+  ...entry,
+  provider: createProvider(entry.url),
+}));
+
+const poolsByUrl = new Map(
+  rpcEntries.map((r) => [r.url, new ethers.Contract(SWAP_POOL_ADDRESS, POOL_ABI, r.provider)])
+);
+
+const getDyCache = new Map();
+let lastGetDyAtMs = 0;
+const iface = new ethers.Interface([
+  "function swap(uint256 i,uint256 j,uint256 dx)"
+]);
+
+const USDC_INDEX = 0;
+const ARCSCAN_API = "https://testnet.arcscan.app/api";
+const INDEXER_STATE_KEY = "swapIndexer:lastBlock";
+const ru = String(process.env.REDIS_URL || "").trim();
+const hasRedis = ru.startsWith("redis://") || ru.startsWith("rediss://");
+const hasUpstash =
+  String(process.env.KV_REST_API_URL || "").trim() &&
+  String(process.env.KV_REST_API_TOKEN || "").trim();
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getBlockNumberWithFallback() {
+  let lastErr = null;
+  for (const entry of rpcEntries) {
+    try {
+      return await entry.provider.getBlockNumber();
+    } catch (e) {
+      lastErr = e;
+      console.warn(
+        `[RPC] ${entry.label} getBlockNumber failed:`,
+        e?.message || e
+      );
+    }
+  }
+  throw lastErr || new Error("All RPC providers failed getBlockNumber");
+}
+
+async function throttleGetDy() {
+  const now = Date.now();
+  const waitMs = lastGetDyAtMs + GET_DY_MIN_INTERVAL_MS - now;
+  if (waitMs > 0) {
+    await sleep(waitMs);
+  }
+  lastGetDyAtMs = Date.now();
+}
+
+async function getDyWithFallback(i, dx) {
+  const cacheKey = `${i}:${dx.toString()}`;
+  if (getDyCache.has(cacheKey)) {
+    return getDyCache.get(cacheKey);
+  }
+
+  let lastErr = null;
+  for (const entry of rpcEntries) {
+    try {
+      await throttleGetDy();
+      const pool = poolsByUrl.get(entry.url);
+      const out = await pool.get_dy(i, USDC_INDEX, dx);
+      getDyCache.set(cacheKey, out);
+      return out;
+    } catch (e) {
+      lastErr = e;
+      console.warn(
+        `[RPC] ${entry.label} get_dy failed:`,
+        e?.message || e
+      );
+    }
+  }
+  throw lastErr || new Error("All RPC providers failed get_dy");
+}
+
+async function getStartingBlock() {
+  try {
+    const stored = await kv.get(INDEXER_STATE_KEY);
+    if (stored && Number(stored) > 0) {
+      console.log(`Resuming from stored last block: ${stored}`);
+      return Number(stored);
+    }
+  } catch (e) {
+    console.warn("Failed to read indexer state from KV", e?.message || e);
+  }
+
+  try {
+    const latest = await getBlockNumberWithFallback();
+    console.log(`No stored state. Starting from latest block ${latest}`);
+    await kv.set(INDEXER_STATE_KEY, latest);
+    return latest;
+  } catch (e) {
+    console.warn("Failed to get latest block from RPC, defaulting to 0", e?.message || e);
+    return 0;
+  }
+}
+
+async function fetchNewTransactions(fromBlock) {
+  let startBlock = fromBlock;
+  let lastProcessedBlock = fromBlock;
+  const walletDeltas = new Map(); // wallet -> { count: number, volume: number }
+  getDyCache.clear();
+
+  while (true) {
+    const url =
+      `${ARCSCAN_API}?module=account&action=txlist` +
+      `&address=${SWAP_POOL_ADDRESS}` +
+      `&startblock=${startBlock}&endblock=999999999&sort=asc`;
+
+    const resp = await fetch(url);
+    const data = await resp.json();
+
+    if (data.status !== "1" || !data.result || data.result.length === 0) {
+      break;
+    }
+
+    console.log(
+      `Arcscan returned ${data.result.length} txs from block ${startBlock} (latest block in batch: ${data.result[data.result.length - 1].blockNumber})`
+    );
+
+    for (const tx of data.result) {
+      try {
+        if (!tx.input || tx.input === "0x") continue;
+
+        let decoded;
+        try {
+          decoded = iface.parseTransaction({ data: tx.input });
+        } catch {
+          continue;
+        }
+
+        const wallet = tx.from.toLowerCase();
+        const i = Number(decoded.args[0]);
+        const dx = decoded.args[2];
+
+        let usd = 0;
+
+        // If tokenIn is USDC, the USD value is just the input amount
+        if (i === USDC_INDEX) {
+          usd = Number(ethers.formatUnits(dx, 6));
+        } else {
+          const usdcValue = await getDyWithFallback(i, dx);
+          usd = Number(ethers.formatUnits(usdcValue, 6));
+        }
+
+        if (isNaN(usd) || !isFinite(usd)) continue;
+
+        const current = walletDeltas.get(wallet) || { count: 0, volume: 0 };
+        current.count += 1;
+        current.volume += usd;
+        walletDeltas.set(wallet, current);
+      } catch (err) {
+        console.error(`Error processing tx ${tx.hash}: ${err.message}`);
+      }
+    }
+
+    const lastTx = data.result[data.result.length - 1];
+    lastProcessedBlock = Number(lastTx.blockNumber);
+    startBlock = lastProcessedBlock + 1;
+  }
+
+  // Flush aggregated deltas to KV in one go per wallet
+  for (const [wallet, { count, volume }] of walletDeltas.entries()) {
+    try {
+      const profileKey = `profile:${wallet}`;
+      const newCount = await kv.hincrby(profileKey, "swapCount", count);
+      const newVolume = await kv.hincrbyfloat(profileKey, "swapVolume", volume);
+
+      console.log(
+        `[Arcscan] Wallet ${wallet}: +${count} swaps, +${volume.toFixed(
+          2
+        )} (count=${newCount}, volume=${newVolume})`
+      );
+    } catch (e) {
+      console.error(
+        `Failed to write aggregated stats for wallet ${wallet}:`,
+        e?.message || e
+      );
+    }
+  }
+
+  return lastProcessedBlock;
+}
+
+async function startLiveIndexer() {
+  console.log("Starting Live Swap Indexer (Arcscan tail mode)...");
+
+  if (!hasRedis && !hasUpstash) {
+    console.error(
+      "Missing REDIS_URL (recommended) or KV_REST_API_URL + KV_REST_API_TOKEN in env"
+    );
+    process.exit(1);
+  }
+  console.log(`KV mode: ${hasRedis ? "REDIS_URL" : "KV_REST"}`);
+
+  console.log(
+    `Connected RPCs: ${rpcEntries.map((r) => `${r.label}:${r.url}`).join(" | ")}`
+  );
+  console.log(`Tracking swaps on ${SWAP_POOL_ADDRESS} via Arcscan...`);
+
+  let lastBlock = await getStartingBlock();
+  console.log(`Live indexer starting from block ${lastBlock}`);
+
+  while (true) {
+    try {
+      const latestProcessed = await fetchNewTransactions(lastBlock);
+
+      if (latestProcessed > lastBlock) {
+        lastBlock = latestProcessed + 1;
+        try {
+          await kv.set(INDEXER_STATE_KEY, lastBlock);
+        } catch (e) {
+          console.warn("Failed to persist indexer state to KV", e?.message || e);
+        }
+      }
+    } catch (e) {
+      console.error("Arcscan tail loop error:", e.message || e);
+    }
+
+    await sleep(5000);
+  }
+}
+
+startLiveIndexer().catch((err) => {
+  console.error("Indexer failed to start:", err);
+  process.exit(1);
+});

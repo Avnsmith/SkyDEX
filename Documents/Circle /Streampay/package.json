@@ -1,0 +1,24 @@
+{
+  "name": "streampay",
+  "private": true,
+  "engines": {
+    "node": ">=20.18.2"
+  },
+  "packageManager": "pnpm@10.5.2",
+  "scripts": {
+    "demo": "concurrently \"pnpm --filter api run start:dev\" \"pnpm --filter web run dev\" \"sleep 5 && pnpm run websocket:test\"",
+    "websocket:test": "ts-node --esm scripts/websocket-demo.ts",
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+  },
+  "devDependencies": {
+    "next": "16.2.6",
+    "prettier": "^3.2.5",
+    "socket.io-client": "^4.8.3",
+    "ts-node": "^10.9.2",
+    "turbo": "latest",
+    "typescript": "^5.4.5"
+  }
+}
